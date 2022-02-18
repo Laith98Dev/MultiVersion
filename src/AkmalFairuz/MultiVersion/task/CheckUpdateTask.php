@@ -55,7 +55,7 @@ class CheckUpdateTask extends AsyncTask{
         }
     }
 
-    public function onCompletion(Server $server) : void{
+    public function onCompletion() : void{
         $res = $this->getResult();
         if($res === null) {
             return;
