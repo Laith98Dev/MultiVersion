@@ -169,7 +169,7 @@ class EventListener implements Listener{
         $this->cancel_send = true;
         $newPacket->setCompressionLevel(Server::getInstance()->networkCompressionLevel);
         $newPacket->encode();
-        $player->sendDataPacket($newPacket);
+        $player->getNetworkSession()->sendDataPacket($newPacket);
         $this->cancel_send = false;
     }
 }
