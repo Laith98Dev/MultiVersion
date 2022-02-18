@@ -29,7 +29,7 @@ class Loader extends PluginBase{
     /** @var bool */
     public $canJoin = false;
 
-    public function onEnable() : void{
+    protected function onEnable() : void{
         self::setInstance($this);
 
         foreach($this->getResources() as $k => $v) {
