@@ -48,13 +48,13 @@ class EventListener implements Listener{
         if($packet instanceof LoginPacket) {
             if(!Loader::getInstance()->canJoin) {
                 $player->close("", "Trying to join the server before CraftingManager registered");
-                $event->setCancelled();
+                $event->cancel();
                 return;
             }
             if(!in_array($packet->protocol, ProtocolConstants::SUPPORTED_PROTOCOLS, true) || Loader::getInstance()->isProtocolDisabled($packet->protocol)) {
                 $player->sendPlayStatus(PlayStatusPacket::LOGIN_FAILED_SERVER, true);
                 $player->close("", $player->getServer()->getLanguage()->translateString("pocketmine.disconnect.incompatibleProtocol", [$packet->protocol]), false);
-                $event->setCancelled();
+                $event->cancel();
                 return;
             }
             if($packet->protocol === ProtocolInfo::CURRENT_PROTOCOL) {
@@ -107,7 +107,7 @@ class EventListener implements Listener{
                         });
                         Server::getInstance()->getAsyncPool()->submitTask($task);
                     } catch(BinaryDataException $e) {}
-                    $event->setCancelled();
+                    $event->cancel();
                     return;
                 }
                 $packet->decode();
@@ -135,7 +135,7 @@ class EventListener implements Listener{
             $player->sendDataPacket($batch);
             $this->cancel_send = false;
         }
-        $event->setCancelled();
+        $event->cancel();
     }
 
     private function translateBatchPacketAndSend(BatchPacket $packet, Player $player, int $protocol) {
@@ -145,7 +145,7 @@ class EventListener implements Listener{
                 $pk = PacketPool::getPacket($buf);
                 if($pk instanceof CraftingDataPacket){
                     $this->cancel_send = true;
-                    $player->sendDataPacket(Loader::getInstance()->craftingManager->getCraftingDataPacketA($protocol));
+                    $player->getNetworkSession()->sendDataPacket(Loader::getInstance()->craftingManager->getCraftingDataPacketA($protocol));
                     $this->cancel_send = false;
                     continue;
                 }
@@ -160,7 +160,7 @@ class EventListener implements Listener{
         if(Config::$ASYNC_BATCH_COMPRESSION && strlen($newPacket->payload) >= Config::$ASYNC_BATCH_THRESHOLD){
             $task = new CompressTask($newPacket, function(BatchPacket $packet) use ($player) {
                 $this->cancel_send = true;
-                $player->sendDataPacket($packet);
+                $player->getNetworkSession()->sendDataPacket($packet);
                 $this->cancel_send = false;
             });
             Server::getInstance()->getAsyncPool()->submitTask($task);
