@@ -47,7 +47,7 @@ class Loader extends PluginBase{
             $this->canJoin = true;
         }), 1);
 
-        $this->getServer()->getCommandMap()->register("multiversion", new MultiVersionCommand("multiversion", $this));
+        //$this->getServer()->getCommandMap()->register("multiversion", new MultiVersionCommand("multiversion", $this));
         $this->getServer()->getPluginManager()->registerEvents(new EventListener(), $this);
 
         //CheckUpdateTask::init($this->getDescription()->getVersion());
