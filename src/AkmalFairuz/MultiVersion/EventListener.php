@@ -143,7 +143,7 @@ class EventListener implements Listener{
 					$batch->encode();
 					
 					$this->cancel_send = true;
-					$player->sendDataPacket($batch);
+					$player->getNetworkSession()->sendDataPacket($batch);
 					$this->cancel_send = false;
 				}
 			}
@@ -158,7 +158,7 @@ class EventListener implements Listener{
                 $pk = PacketPool::getPacket($buf);
                 if($pk instanceof CraftingDataPacket){
                     $this->cancel_send = true;
-                    $player->sendDataPacket(Loader::getInstance()->craftingManager->getCraftingDataPacketA($protocol));
+                    $player->getNetworkSession()->sendDataPacket(Loader::getInstance()->craftingManager->getCraftingDataPacketA($protocol));
                     $this->cancel_send = false;
                     continue;
                 }
@@ -173,7 +173,7 @@ class EventListener implements Listener{
         if(Config::$ASYNC_BATCH_COMPRESSION && strlen($newPacket->payload) >= Config::$ASYNC_BATCH_THRESHOLD){
             $task = new CompressTask($newPacket, function(BatchPacket $packet) use ($player) {
                 $this->cancel_send = true;
-                $player->sendDataPacket($packet);
+                $player->getNetworkSession()->sendDataPacket($packet);
                 $this->cancel_send = false;
             });
             Server::getInstance()->getAsyncPool()->submitTask($task);
@@ -183,7 +183,7 @@ class EventListener implements Listener{
         // $newPacket->setCompressionLevel(Server::getInstance()->networkCompressionLevel);
         $newPacket->setCompressionLevel(7);
         $newPacket->encode();
-        $player->sendDataPacket($newPacket);
+        $player->getNetworkSession()->sendDataPacket($newPacket);
         $this->cancel_send = false;
     }
 }
