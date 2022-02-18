@@ -11,9 +11,11 @@ use AkmalFairuz\MultiVersion\task\CheckUpdateTask;
 use pocketmine\inventory\CraftingManager;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
+use pocketmine\utils\SingletonTrait;
 use function in_array;
 
 class Loader extends PluginBase{
+	use SingletonTrait;
 
     /** @var string */
     public static $resourcesPath;
@@ -27,12 +29,8 @@ class Loader extends PluginBase{
     /** @var bool */
     public $canJoin = false;
 
-    public static function getInstance() : self{
-        return self::$instance;
-    }
-
-    public function onEnable(){
-        self::$instance = $this;
+    public function onEnable() : void{
+        self::setInstance($this);
 
         foreach($this->getResources() as $k => $v) {
             $this->saveResource($k, $k !== "config.yml");
