@@ -24,7 +24,7 @@ use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PacketViolationWarningPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\BinaryDataException;
 use function in_array;
@@ -40,7 +40,7 @@ class EventListener implements Listener{
      * @priority LOWEST
      */
     public function onDataPacketReceive(DataPacketReceiveEvent $event) {
-        $player = $event->getPlayer();
+        $player = $event->getOrigin()->getPlayer();
         $packet = $event->getPacket();
         if($packet instanceof PacketViolationWarningPacket) {
             Loader::getInstance()->getLogger()->info("PacketViolationWarningPacket packet=" . PacketPool::getPacketById($packet->getPacketId())->getName() . ",message=" . $packet->getMessage() . ",type=" . $packet->getType() . ",severity=" . $packet->getSeverity());
@@ -48,13 +48,13 @@ class EventListener implements Listener{
         if($packet instanceof LoginPacket) {
             if(!Loader::getInstance()->canJoin) {
                 $player->close("", "Trying to join the server before CraftingManager registered");
-                $event->setCancelled();
+                $event->cancel();
                 return;
             }
             if(!in_array($packet->protocol, ProtocolConstants::SUPPORTED_PROTOCOLS, true) || Loader::getInstance()->isProtocolDisabled($packet->protocol)) {
                 $player->sendPlayStatus(PlayStatusPacket::LOGIN_FAILED_SERVER, true);
                 $player->close("", $player->getServer()->getLanguage()->translateString("pocketmine.disconnect.incompatibleProtocol", [$packet->protocol]), false);
-                $event->setCancelled();
+                $event->cancel();
                 return;
             }
             if($packet->protocol === ProtocolInfo::CURRENT_PROTOCOL) {
@@ -89,53 +89,65 @@ class EventListener implements Listener{
         if($this->cancel_send) {
             return;
         }
-        $player = $event->getPlayer();
-        $packet = $event->getPacket();
-        $protocol = SessionManager::getProtocol($player);
-        if($protocol === null) {
-            return;
-        }
-        if($packet instanceof ModalFormRequestPacket || $packet instanceof NetworkStackLatencyPacket) {
-            return; // fix form and invmenu plugins not working
-        }
-        if($packet instanceof BatchPacket) {
-            if($packet->isEncoded){
-                if(Config::$ASYNC_BATCH_DECOMPRESSION && strlen($packet->buffer) >= Config::$ASYNC_BATCH_THRESHOLD) {
-                    try{
-                        $task = new DecompressTask($packet, function(BatchPacket $packet) use ($player, $protocol){
-                            $this->translateBatchPacketAndSend($packet, $player, $protocol);
-                        });
-                        Server::getInstance()->getAsyncPool()->submitTask($task);
-                    } catch(BinaryDataException $e) {}
-                    $event->setCancelled();
-                    return;
-                }
-                $packet->decode();
-            }
+        // $player = $event->getPlayer();
+        // $packet = $event->getPacket();
+		
+		$packets = $event->getPackets();
+		$players = $event->getTargets();
+		
+		foreach ($packets as $packet){
+			foreach ($players as $player){
+				$protocol = SessionManager::getProtocol($player);
+				if($protocol === null) {
+					return;
+				}
+				
+				if($packet instanceof ModalFormRequestPacket || $packet instanceof NetworkStackLatencyPacket) {
+					return; // fix form and invmenu plugins not working
+				}
+				
+				if($packet instanceof BatchPacket) {
+					if($packet->isEncoded){
+						if(Config::$ASYNC_BATCH_DECOMPRESSION && strlen($packet->buffer) >= Config::$ASYNC_BATCH_THRESHOLD) {
+							try{
+								$task = new DecompressTask($packet, function(BatchPacket $packet) use ($player, $protocol){
+									$this->translateBatchPacketAndSend($packet, $player, $protocol);
+								});
+								Server::getInstance()->getAsyncPool()->submitTask($task);
+							} catch(BinaryDataException $e) {}
+							$event->cancel();
+							return;
+						}
+						$packet->decode();
+					}
 
-            $this->translateBatchPacketAndSend($packet, $player, $protocol);
-        } else {
-            if($packet->isEncoded){
-                $packet->decode();
-            }
-            $translated = true;
-            $newPacket = Translator::fromServer($packet, $protocol, $player, $translated);
-            if(!$translated) {
-                return;
-            }
-            if($newPacket === null) {
-                $event->setCancelled();
-                return;
-            }
-            $batch = new BatchPacket();
-            $batch->addPacket($newPacket);
-            $batch->setCompressionLevel(Server::getInstance()->networkCompressionLevel);
-            $batch->encode();
-            $this->cancel_send = true;
-            $player->sendDataPacket($batch);
-            $this->cancel_send = false;
-        }
-        $event->setCancelled();
+					$this->translateBatchPacketAndSend($packet, $player, $protocol);
+				} else {
+					if($packet->isEncoded){
+						$packet->decode();
+					}
+					$translated = true;
+					$newPacket = Translator::fromServer($packet, $protocol, $player, $translated);
+					if(!$translated) {
+						return;
+					}
+					if($newPacket === null) {
+						$event->cancel();
+						return;
+					}
+					
+					$batch = new BatchPacket();
+					$batch->addPacket($newPacket);
+					$batch->setCompressionLevel(Server::getInstance()->networkCompressionLevel);
+					$batch->encode();
+					
+					$this->cancel_send = true;
+					$player->sendDataPacket($batch);
+					$this->cancel_send = false;
+				}
+			}
+		}
+        $event->cancel();
     }
 
     private function translateBatchPacketAndSend(BatchPacket $packet, Player $player, int $protocol) {
