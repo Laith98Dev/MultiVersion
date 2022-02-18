@@ -7,12 +7,17 @@ namespace AkmalFairuz\MultiVersion\network\convert;
 use AkmalFairuz\MultiVersion\Loader;
 use AkmalFairuz\MultiVersion\network\ProtocolConstants;
 use pocketmine\block\BlockIds;
-use pocketmine\nbt\NetworkLittleEndianNBTStream;
+use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\convert\R12ToCurrentBlockMapEntry;
 use pocketmine\network\mcpe\NetworkBinaryStream;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\utils\AssumptionFailedError;
+use pocketmine\utils\Utils;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
+use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
+use Webmozart\PathUtil\Path;
 use function file_get_contents;
 use function json_decode;
 
@@ -42,11 +47,16 @@ class MultiVersionRuntimeBlockMapping{
             if(Loader::getInstance()->isProtocolDisabled($protocol)) {
                 continue;
             }
-            $canonicalBlockStatesFile = file_get_contents(Loader::$resourcesPath . "vanilla/canonical_block_states".$fileName.".nbt");
-            if($canonicalBlockStatesFile === false){
-                throw new AssumptionFailedError("Missing required resource file");
-            }
-            $stream = new NetworkBinaryStream($canonicalBlockStatesFile);
+           // $canonicalBlockStatesFile = file_get_contents(Loader::$resourcesPath . "vanilla/canonical_block_states".$fileName.".nbt");
+      ///      if($canonicalBlockStatesFile === false){
+       //         throw new AssumptionFailedError("Missing required resource file");
+       //     }
+            $stream = PacketSerializer::decoder(
+                Utils::assumeNotFalse(file_get_contents(Path::join(Loader::$resourcesPath, "vanilla/canonical_block_states".$fileName.".nbt")), "Missing required resource file"),
+                0,
+                new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary())
+            );
+           // $stream = new NetworkBinaryStream($canonicalBlockStatesFile);
             $list = [];
             while(!$stream->feof()){
                 $list[] = $stream->getNbtCompoundRoot();
@@ -76,15 +86,20 @@ class MultiVersionRuntimeBlockMapping{
                 break;
         }
         $path = Loader::$resourcesPath . "vanilla/r12_to_current_block_map".$suffix.".bin";
-        $legacyStateMapReader = new NetworkBinaryStream(file_get_contents($path));
-        $nbtReader = new NetworkLittleEndianNBTStream();
+        //$legacyStateMapReader = new NetworkBinaryStream(file_get_contents($path));
+        $legacyStateMapReader = PacketSerializer::decoder(
+            Utils::assumeNotFalse(file_get_contents($path), "Missing required resource file"),
+            0,
+            new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary())
+        ); 
+        $nbtReader = new NetworkNbtSerializer();
         while(!$legacyStateMapReader->feof()){
             $id = $legacyStateMapReader->getString();
             $meta = $legacyStateMapReader->getLShort();
 
             $offset = $legacyStateMapReader->getOffset();
-            $state = $nbtReader->read($legacyStateMapReader->getBuffer(), false, $offset);
-            $legacyStateMapReader->setOffset($offset);
+            $state = $nbtReader->read($legacyStateMapReader->getBuffer(), $offset)->mustGetCompoundTag();
+           $legacyStateMapReader->setOffset($offset);
             if(!($state instanceof CompoundTag)){
                 throw new \RuntimeException("Blockstate should be a TAG_Compound");
             }
@@ -111,7 +126,7 @@ class MultiVersionRuntimeBlockMapping{
             $mappedState = $pair->getBlockState();
 
             //TODO HACK: idiotic NBT compare behaviour on 3.x compares keys which are stored by values
-            $mappedState->setName("");
+          //  $mappedState->setName("");
             $mappedName = $mappedState->getString("name");
             if(!isset($idToStatesMap[$mappedName])){
                 throw new \RuntimeException("Mapped new state does not appear in network table");
