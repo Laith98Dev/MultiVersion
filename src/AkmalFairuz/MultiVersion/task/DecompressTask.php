@@ -25,7 +25,7 @@ class DecompressTask extends AsyncTask{
         $this->storeLocal([$packet, $callback]);
     }
 
-    public function onRun(){
+    public function onRun(): void{
         try{
             $this->setResult(zlib_decode($this->buffer, 1024 * 1024 * 2));
         } catch(\Exception $e) {
@@ -33,7 +33,7 @@ class DecompressTask extends AsyncTask{
         }
     }
 
-    public function onCompletion(Server $server){
+    public function onCompletion(): void{
         if($this->fail) {
             Loader::getInstance()->getLogger()->error("Failed to decompress batch packet");
             return;
