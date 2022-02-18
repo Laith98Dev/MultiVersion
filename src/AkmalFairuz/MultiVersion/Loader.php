@@ -15,7 +15,7 @@ use pocketmine\utils\SingletonTrait;
 use function in_array;
 
 class Loader extends PluginBase{
-	use SingletonTrait;
+    use SingletonTrait;
 
     /** @var string */
     public static $resourcesPath;
