@@ -30,7 +30,7 @@ class CompressTask extends AsyncTask{
         $this->level = Server::getInstance()->networkCompressionLevel;
     }
 
-    public function onRun(){
+    public function onRun(): void{
         try{
             $this->setResult(zlib_encode($this->payload, ZLIB_ENCODING_RAW, $this->level));
         } catch(\Exception $e) {
