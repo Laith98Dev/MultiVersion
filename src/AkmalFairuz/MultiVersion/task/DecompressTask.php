@@ -33,7 +33,7 @@ class DecompressTask extends AsyncTask{
         }
     }
 
-    public function onCompletion(Server $server){
+    public function onCompletion(): void{
         if($this->fail) {
             Loader::getInstance()->getLogger()->error("Failed to decompress batch packet");
             return;
