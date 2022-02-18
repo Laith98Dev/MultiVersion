@@ -27,10 +27,11 @@ class CompressTask extends AsyncTask{
         $packet->reset();
         $this->payload = $packet->payload;
         $this->storeLocal([$packet, $callback]);
-        $this->level = Server::getInstance()->networkCompressionLevel;
+        // $this->level = Server::getInstance()->networkCompressionLevel;
+        $this->level = 7;
     }
 
-    public function onRun(){
+    public function onRun(): void{
         try{
             $this->setResult(zlib_encode($this->payload, ZLIB_ENCODING_RAW, $this->level));
         } catch(\Exception $e) {
@@ -38,7 +39,7 @@ class CompressTask extends AsyncTask{
         }
     }
 
-    public function onCompletion(Server $server){
+    public function onCompletion() : void{
         if($this->fail) {
             Loader::getInstance()->getLogger()->error("Failed to compress batch packet");
             return;
