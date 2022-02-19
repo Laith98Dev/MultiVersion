@@ -10,6 +10,7 @@ use AkmalFairuz\MultiVersion\network\convert\MultiVersionRuntimeBlockMapping;
 use pocketmine\block\BlockIds;
 use pocketmine\item\Durable;
 use pocketmine\item\Item;
+use pocketmine\item\ItemIds;
 use pocketmine\item\ItemFactory;
 use pocketmine\nbt\LittleEndianNBTStream;
 use pocketmine\nbt\tag\CompoundTag;
@@ -260,7 +261,7 @@ class Serializer{
     public static function getItemStack(DataPacket $packet, \Closure $readExtraCrapInTheMiddle, int $protocol) : Item{
         $netId = $packet->getVarInt();
         if($netId === 0){
-            return ItemFactory::get(0, 0, 0);
+            return ItemFactory::getInstance()->get(0, 0, 0);
         }
 
         $cnt = $packet->getLShort();
@@ -333,7 +334,7 @@ class Serializer{
                     }
                 }
             }
-            return ItemFactory::get($id, $meta, $cnt, $nbt);
+            return ItemFactory::getInstance()->get($id, $meta, $cnt, $nbt);
         })();
     }
 
