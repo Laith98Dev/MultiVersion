@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace AkmalFairuz\MultiVersion\network;
 
+use pocketmine\network\mcpe\NetworkSession;
+
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\network\mcpe\PlayerNetworkSessionAdapter;
 use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\Player;
+use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use function base64_encode;
@@ -17,7 +20,8 @@ use function bin2hex;
 use function strlen;
 use function substr;
 
-class MultiVersionSessionAdapter extends PlayerNetworkSessionAdapter{
+// class MultiVersionSessionAdapter extends PlayerNetworkSessionAdapter{
+class MultiVersionSessionAdapter extends NetworkSession{
 
     /** @var int */
     protected $protocol;
@@ -31,7 +35,7 @@ class MultiVersionSessionAdapter extends PlayerNetworkSessionAdapter{
         $this->protocol = $protocol;
     }
 
-    public function handleDataPacket(DataPacket $packet){
+    public function handleDataPacket(Packet $packet, string $buffer): void{
         if($packet instanceof BatchPacket) {
             $packet->decode();
             foreach($packet->getPackets() as $buf) {
@@ -46,7 +50,7 @@ class MultiVersionSessionAdapter extends PlayerNetworkSessionAdapter{
         }
     }
 
-    private function fixedHandleDataPacket(DataPacket $packet) {
+    private function fixedHandleDataPacket(Packet $packet): void {
         if(!$this->fixedPlayer->isConnected()){
             return;
         }
