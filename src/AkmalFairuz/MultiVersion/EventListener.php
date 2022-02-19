@@ -46,6 +46,8 @@ class EventListener implements Listener{
             Loader::getInstance()->getLogger()->info("PacketViolationWarningPacket packet=" . PacketPool::getPacketById($packet->getPacketId())->getName() . ",message=" . $packet->getMessage() . ",type=" . $packet->getType() . ",severity=" . $packet->getSeverity());
         }
         if($packet instanceof LoginPacket) {
+			if(!$player instanceof Player)
+				return;
             if(!Loader::getInstance()->canJoin) {
                 $player->close("", "Trying to join the server before CraftingManager registered");
                 $event->cancel();
