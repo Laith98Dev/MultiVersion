@@ -12,15 +12,15 @@ class SessionManager{
     private static $sessions = [];
 
     public static function get(Player $player) : ?Session{
-        return self::$sessions[$player->getLoaderId()] ?? null;
+        return self::$sessions[$player->getId()] ?? null;
     }
 
     public static function remove(Player $player) {
-        unset(self::$sessions[$player->getLoaderId()]);
+        unset(self::$sessions[$player->getId()]);
     }
 
     public static function create(Player $player, int $protocol) {
-        self::$sessions[$player->getLoaderId()] = new Session($player, $protocol);
+        self::$sessions[$player->getId()] = new Session($player, $protocol);
     }
 
     public static function getProtocol(Player $player): ?int{
