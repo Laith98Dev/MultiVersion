@@ -96,7 +96,13 @@ class EventListener implements Listener{
 		$players = $event->getTargets();
 		
 		foreach ($packets as $packet){
-			foreach ($players as $player){
+			foreach ($players as $session){
+				$player = $session->getPlayer();
+				
+				if($player === null) {
+					return;
+				}
+				
 				$protocol = SessionManager::getProtocol($player);
 				if($protocol === null) {
 					return;
