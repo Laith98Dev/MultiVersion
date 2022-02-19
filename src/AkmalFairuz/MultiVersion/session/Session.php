@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace AkmalFairuz\MultiVersion\session;
 
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 class Session{
 
