@@ -7,7 +7,7 @@ namespace AkmalFairuz\MultiVersion\network\convert;
 use AkmalFairuz\MultiVersion\Loader;
 use AkmalFairuz\MultiVersion\network\ProtocolConstants;
 use AkmalFairuz\MultiVersion\network\Translator;
-use pocketmine\inventory\CraftingManager;
+use pocketmine\crafting\CraftingManager;
 use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\Server;

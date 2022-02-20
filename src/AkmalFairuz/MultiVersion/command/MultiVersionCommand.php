@@ -4,26 +4,20 @@ declare(strict_types=1);
 
 namespace AkmalFairuz\MultiVersion\command;
 
-use AkmalFairuz\MultiVersion\Loader;
-use AkmalFairuz\MultiVersion\MultiVersion;
-use AkmalFairuz\MultiVersion\network\ProtocolConstants;
+use AkmalFairuz\{MultiVersion\Loader, MultiVersion\MultiVersion, MultiVersion\network\ProtocolConstants};
+use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
-use pocketmine\command\PluginCommand;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\TextFormat;
 use function count;
-use function strlen;
-use function substr;
 
-class MultiVersionCommand extends PluginCommand{
+class MultiVersionCommand extends Command {
 
     const PREFIX = TextFormat::YELLOW . "[" . TextFormat::GREEN . "Multi" . TextFormat::GOLD . "Version" . TextFormat::YELLOW . "] " . TextFormat::LIGHT_PURPLE;
 
     public function __construct(string $name, Loader $owner){
-        parent::__construct($name, $owner);
-        $this->setDescription("MultiVersion command");
-        $this->setAliases(["mv"]);
+        parent::__construct($name, "MultiVersion command", \null, ["mv"]);
         $this->setPermission("multiversion.command");
     }
 

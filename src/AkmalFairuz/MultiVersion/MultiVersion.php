@@ -6,7 +6,7 @@ namespace AkmalFairuz\MultiVersion;
 
 use AkmalFairuz\MultiVersion\session\SessionManager;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use pocketmine\Player;
+use pocketmine\player\Player;
 
 class MultiVersion{
 

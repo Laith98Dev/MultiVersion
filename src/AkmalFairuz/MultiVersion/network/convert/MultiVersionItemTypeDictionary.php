@@ -6,8 +6,7 @@ namespace AkmalFairuz\MultiVersion\network\convert;
 
 use AkmalFairuz\MultiVersion\Loader;
 use AkmalFairuz\MultiVersion\network\ProtocolConstants;
-use pocketmine\network\mcpe\convert\ItemTypeDictionary;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\SingletonTrait;
@@ -97,14 +96,14 @@ class MultiVersionItemTypeDictionary{
 
     public function fromStringId(string $stringId, int $protocol) : int{
         if(!array_key_exists($stringId, $this->stringToIntMap[$protocol])){
-            return ItemTypeDictionary::getInstance()->fromStringId($stringId); // custom item check
+            return GlobalItemTypeDictionary::getInstance()->getDictionary()->fromStringId($stringId); // custom item check
         }
         return $this->stringToIntMap[$protocol][$stringId];
     }
 
     public function fromIntId(int $intId, int $protocol) : string{
         if(!array_key_exists($intId, $this->intToStringIdMap[$protocol])){
-            return ItemTypeDictionary::getInstance()->fromIntId($intId); // custom item check
+            return GlobalItemTypeDictionary::getInstance()->getDictionary()->fromIntId($intId); // custom item check
         }
         return $this->intToStringIdMap[$protocol][$intId];
     }

@@ -24,13 +24,17 @@ use AkmalFairuz\MultiVersion\network\translator\PlayerSkinPacketTranslator;
 use AkmalFairuz\MultiVersion\network\translator\ResourcePacksInfoPacketTranslator;
 use AkmalFairuz\MultiVersion\network\translator\SetTitlePacketTranslator;
 use AkmalFairuz\MultiVersion\network\translator\StartGamePacketTranslator;
-use pocketmine\entity\Entity;
+use pocketmine\block\BlockFactory;
+use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\convert\RuntimeBlockMapping;
+use pocketmine\network\mcpe\JwtException;
+use pocketmine\network\mcpe\JwtUtils;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
 use pocketmine\network\mcpe\protocol\AddItemActorPacket;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
 use pocketmine\network\mcpe\protocol\AnimateEntityPacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\network\mcpe\protocol\CreativeContentPacket;
 use pocketmine\network\mcpe\protocol\DataPacket;
@@ -49,20 +53,52 @@ use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
 use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
 use pocketmine\network\mcpe\protocol\SetTitlePacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataTypes;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
+use pocketmine\network\mcpe\protocol\types\login\ClientData;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
-use pocketmine\Player;
+use pocketmine\network\PacketHandlingException;
+use pocketmine\player\Player;
+use pocketmine\utils\BinaryStream;
 
 class Translator{
+
+	/**
+	 * @throws PacketHandlingException
+	 */
+	public static function parseClientData(string $clientDataJwt) : ClientData{
+		try{
+			[, $clientDataClaims, ] = JwtUtils::parse($clientDataJwt);
+		}catch(JwtException $e){
+			throw PacketHandlingException::wrap($e);
+		}
+
+		$mapper = new \JsonMapper;
+		$mapper->bEnforceMapType = false; //TODO: we don't really need this as an array, but right now we don't have enough models
+		$mapper->bExceptionOnMissingData = true;
+		$mapper->bExceptionOnUndefinedProperty = true;
+		try{
+			$clientData = $mapper->map($clientDataClaims, new ClientData);
+		}catch(\JsonMapper_Exception $e){
+			throw PacketHandlingException::wrap($e);
+		}
+		return $clientData;
+	}
 
     public static function fromClient(DataPacket $packet, int $protocol, Player $player = null) : DataPacket{
         $pid = $packet::NETWORK_ID;
         switch($pid) {
             case LoginPacket::NETWORK_ID:
                 /** @var LoginPacket $packet */
+				$clientData = self::parseClientData($packet->clientDataJwt);
                 if($protocol < ProtocolConstants::BEDROCK_1_17_30) {
-                    $packet->clientData["SkinGeometryDataEngineVersion"] = "";
+					$clientData->SkinGeometryDataEngineVersion = "";
                 }
                 return $packet;
             case PlayerSkinPacket::NETWORK_ID:
@@ -79,12 +115,13 @@ class Translator{
                 return $packet;
             case LevelSoundEventPacket::NETWORK_ID:
                 /** @var LevelSoundEventPacket $packet */
-                $packet->decode();
+				$stream = PacketSerializer::decoder(file_get_contents(\pocketmine\BEDROCK_DATA_PATH . "level_sound_id_map.json"), 0, new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary()));
+				$packet->decode($stream);
                 switch($packet->sound) {
-                    case LevelSoundEventPacket::SOUND_PLACE:
-                    case LevelSoundEventPacket::SOUND_BREAK_BLOCK:
+                    case LevelSoundEvent::PLACE:
+                    case LevelSoundEvent::BREAK_BLOCK:
                         $block = MultiVersionRuntimeBlockMapping::fromStaticRuntimeId($packet->extraData, $protocol);
-                        $packet->extraData = RuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1]);
+                        $packet->extraData = RuntimeBlockMapping::getInstance()->toRuntimeId(BlockFactory::getInstance()->get($block[0], $block[1])->getFullId());
                         return $packet;
                 }
                 return $packet;
@@ -116,15 +153,15 @@ class Translator{
                 return $packet;
             case UpdateBlockPacket::NETWORK_ID:
                 /** @var UpdateBlockPacket $packet */
-                $block = RuntimeBlockMapping::fromStaticRuntimeId($packet->blockRuntimeId);
+                $block = RuntimeBlockMapping::getInstance()->fromNetworkId($packet->blockRuntimeId);
                 $packet->blockRuntimeId = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1], $protocol);
                 return $packet;
             case LevelSoundEventPacket::NETWORK_ID:
                 /** @var LevelSoundEventPacket $packet */
                 switch($packet->sound) {
-                    case LevelSoundEventPacket::SOUND_PLACE:
-                    case LevelSoundEventPacket::SOUND_BREAK_BLOCK:
-                        $block = RuntimeBlockMapping::fromStaticRuntimeId($packet->extraData);
+                    case LevelSoundEvent::PLACE:
+                    case LevelSoundEvent::BREAK_BLOCK:
+                        $block = RuntimeBlockMapping::getInstance()->fromNetworkId($packet->extraData);
                         $packet->extraData = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1], $protocol);
                         return $packet;
                 }
@@ -133,9 +170,9 @@ class Translator{
                 /** @var AddActorPacket $packet */
                 switch($packet->type) {
                     case "minecraft:falling_block":
-                        if(isset($packet->metadata[Entity::DATA_VARIANT])){
-                            $block = RuntimeBlockMapping::fromStaticRuntimeId($packet->metadata[Entity::DATA_VARIANT][1]);
-                            $packet->metadata[Entity::DATA_VARIANT] = [Entity::DATA_TYPE_INT, MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1], $protocol)];
+                        if(isset($packet->metadata[EntityMetadataProperties::VARIANT])){
+                            $block = RuntimeBlockMapping::getInstance()->fromNetworkId($packet->metadata[EntityMetadataProperties::VARIANT][1]);
+                            $packet->metadata[EntityMetadataProperties::VARIANT] = [EntityMetadataTypes::INT, MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1], $protocol)];
                         }
                         return $packet;
                 }
@@ -143,26 +180,26 @@ class Translator{
             case LevelEventPacket::NETWORK_ID:
                 /** @var LevelEventPacket $packet */
                 switch($packet->evid) {
-                    case LevelEventPacket::EVENT_PARTICLE_DESTROY:
-                        $block = RuntimeBlockMapping::fromStaticRuntimeId($packet->data);
+                    case LevelEvent::PARTICLE_DESTROY:
+                        $block = RuntimeBlockMapping::getInstance()->fromNetworkId($packet->data);
                         $packet->data = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1], $protocol);
                         return $packet;
-                    case LevelEventPacket::EVENT_PARTICLE_PUNCH_BLOCK:
+                    case LevelEvent::PARTICLE_PUNCH_BLOCK:
                         $position = $packet->position;
-                        $block = $player->getLevelNonNull()->getBlock($position);
+                        $block = $player->getWorld()->getBlock($position);
                         if($block->getId() === 0) {
                             return null;
                         }
-                        $face = $packet->data & ~$block->getRuntimeId();
-                        $packet->data = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block->getId(), $block->getDamage(), $protocol) | $face;
+                        $face = $packet->data & ~RuntimeBlockMapping::getInstance()->get($block->getId(), $block->getMeta())->getFullId();
+                        $packet->data = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block->getId(), $block->getMeta(), $protocol) | $face;
                         return $packet;
                 }
                 return $packet;
             case LevelChunkPacket::NETWORK_ID:
                 /** @var LevelChunkPacket $packet */
                 if($protocol <= ProtocolConstants::BEDROCK_1_17_40) {
-                    if($player->getLevel() !== null){
-                        return Chunk112::serialize($player->getLevel(), $packet);
+                    if($player->getWorld() !== null){
+                        return Chunk112::serialize($player->getWorld(), $packet);
                     }
                     return null;
                 }
@@ -259,19 +296,19 @@ class Translator{
     }
 
     public static function encodeHeader(DataPacket $packet) {
-        $packet->reset();
-        $packet->putUnsignedVarInt(
+		$in = new BinaryStream();
+		$in->rewind();
+		$in->putUnsignedVarInt(
             $packet::NETWORK_ID |
             ($packet->senderSubId << 10) |
             ($packet->recipientSubId << 12)
         );
-        $packet->isEncoded = true;
     }
 
     public static function decodeHeader(DataPacket $packet) {
-        $packet->isEncoded = false;
+		$out = new BinaryStream();
         $packet->offset = 0;
-        $header = $packet->getUnsignedVarInt();
+        $header = $out->getUnsignedVarInt();
         $pid = $header & $packet::PID_MASK;
         if($pid !== $packet::NETWORK_ID){
             throw new \UnexpectedValueException("Expected " . $packet::NETWORK_ID . " for packet ID, got $pid");
