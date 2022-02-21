@@ -29,7 +29,7 @@ class CompressTask extends AsyncTask{
 		$promise = new CompressBatchPromise();
         $this->storeLocal(self::TLS_KEY_PROMISE, $promise);
         $this->storeLocal(self::TLS_KEY_ERROR_HOOK, $callback);
-		$this->payload = $promise;
+		$this->payload = $promise->getResult();
 		$this->level = 7;
     }
 
