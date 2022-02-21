@@ -26,10 +26,11 @@ class CompressTask extends AsyncTask{
 
 	public function __construct(BinaryStream $stream, callable $callback) {
 		$stream->rewind();
-		$this->payload = $stream->getRemaining();
-        $this->storeLocal(self::TLS_KEY_PROMISE, new CompressBatchPromise());
+		$promise = new CompressBatchPromise();
+        $this->storeLocal(self::TLS_KEY_PROMISE, $promise);
         $this->storeLocal(self::TLS_KEY_ERROR_HOOK, $callback);
-        $this->level = 7;
+		$this->payload = $promise;
+		$this->level = 7;
     }
 
     public function onRun(): void{
