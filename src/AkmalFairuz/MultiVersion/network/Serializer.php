@@ -5,127 +5,135 @@ declare(strict_types=1);
 namespace AkmalFairuz\MultiVersion\network;
 
 use AkmalFairuz\MultiVersion\network\convert\MultiVersionItemTranslator;
-use AkmalFairuz\MultiVersion\network\convert\MultiVersionItemTypeDictionary;
+use AkmalFairuz\MultiVersion\network\convert\MultiVersionGlobalItemTypeDictionary;
 use AkmalFairuz\MultiVersion\network\convert\MultiVersionRuntimeBlockMapping;
-use pocketmine\block\BlockIds;
+use pocketmine\block\BlockLegacyIds;
 use pocketmine\item\Durable;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\nbt\LittleEndianNBTStream;
+use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\network\mcpe\NetworkBinaryStream;
+use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\protocol\DataPacket;
-use pocketmine\network\mcpe\protocol\types\EntityLink;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
+use pocketmine\network\mcpe\protocol\types\entity\EntityLink;
 use pocketmine\network\mcpe\protocol\types\GameRuleType;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
-use pocketmine\network\mcpe\protocol\types\PersonaPieceTintColor;
-use pocketmine\network\mcpe\protocol\types\PersonaSkinPiece;
-use pocketmine\network\mcpe\protocol\types\SkinAnimation;
-use pocketmine\network\mcpe\protocol\types\SkinData;
-use pocketmine\network\mcpe\protocol\types\SkinImage;
+use pocketmine\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
+use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPiece;
+use pocketmine\network\mcpe\protocol\types\skin\SkinData;
+use pocketmine\network\mcpe\protocol\types\skin\SkinAnimation;
+use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
+use pocketmine\utils\BinaryStream;
+use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use function count;
 
 class Serializer{
 
     public static function putSkin(SkinData $skin, DataPacket $packet, int $protocol){
-        $packet->putString($skin->getSkinId());
-        $packet->putString($skin->getPlayFabId());
-        $packet->putString($skin->getResourcePatch());
+		$in = new BinaryStream();
+        $in->putString($skin->getSkinId());
+        $in->putString($skin->getPlayFabId());
+        $in->putString($skin->getResourcePatch());
         self::putSkinImage($skin->getSkinImage(), $packet);
-        $packet->putLInt(count($skin->getAnimations()));
+        $in->putLInt(count($skin->getAnimations()));
         foreach($skin->getAnimations() as $animation){
             self::putSkinImage($animation->getImage(), $packet);
-            $packet->putLInt($animation->getType());
-            $packet->putLFloat($animation->getFrames());
-            $packet->putLInt($animation->getExpressionType());
+            $in->putLInt($animation->getType());
+            $in->putLFloat($animation->getFrames());
+            $in->putLInt($animation->getExpressionType());
         }
         self::putSkinImage($skin->getCapeImage(), $packet);
-        $packet->putString($skin->getGeometryData());
+        $in->putString($skin->getGeometryData());
         if($protocol >= ProtocolConstants::BEDROCK_1_17_30){
-            $packet->putString($skin->getGeometryDataEngineVersion());
+            $in->putString($skin->getGeometryDataEngineVersion());
         }
-        $packet->putString($skin->getAnimationData());
+        $in->putString($skin->getAnimationData());
         if($protocol < ProtocolConstants::BEDROCK_1_17_30) {
-            $packet->putBool($skin->isPremium());
-            $packet->putBool($skin->isPersona());
-            $packet->putBool($skin->isPersonaCapeOnClassic());
+            $in->putBool($skin->isPremium());
+            $in->putBool($skin->isPersona());
+            $in->putBool($skin->isPersonaCapeOnClassic());
         }
-        $packet->putString($skin->getCapeId());
-        $packet->putString($skin->getFullSkinId());
-        $packet->putString($skin->getArmSize());
-        $packet->putString($skin->getSkinColor());
-        $packet->putLInt(count($skin->getPersonaPieces()));
+        $in->putString($skin->getCapeId());
+        $in->putString($skin->getFullSkinId());
+        $in->putString($skin->getArmSize());
+        $in->putString($skin->getSkinColor());
+        $in->putLInt(count($skin->getPersonaPieces()));
         foreach($skin->getPersonaPieces() as $piece){
-            $packet->putString($piece->getPieceId());
-            $packet->putString($piece->getPieceType());
-            $packet->putString($piece->getPackId());
-            $packet->putBool($piece->isDefaultPiece());
-            $packet->putString($piece->getProductId());
+            $in->putString($piece->getPieceId());
+            $in->putString($piece->getPieceType());
+            $in->putString($piece->getPackId());
+            $in->putBool($piece->isDefaultPiece());
+            $in->putString($piece->getProductId());
         }
-        $packet->putLInt(count($skin->getPieceTintColors()));
+        $in->putLInt(count($skin->getPieceTintColors()));
         foreach($skin->getPieceTintColors() as $tint){
-            $packet->putString($tint->getPieceType());
-            $packet->putLInt(count($tint->getColors()));
+            $in->putString($tint->getPieceType());
+            $in->putLInt(count($tint->getColors()));
             foreach($tint->getColors() as $color){
-                $packet->putString($color);
+                $in->putString($color);
             }
         }
         if($protocol >= ProtocolConstants::BEDROCK_1_17_30){
-            $packet->putBool($skin->isPremium());
-            $packet->putBool($skin->isPersona());
-            $packet->putBool($skin->isPersonaCapeOnClassic());
-            $packet->putBool($skin->isPrimaryUser());
+            $in->putBool($skin->isPremium());
+            $in->putBool($skin->isPersona());
+            $in->putBool($skin->isPersonaCapeOnClassic());
+            $in->putBool($skin->isPrimaryUser());
         }
     }
 
     public static function getSkin(DataPacket $packet, int $protocol) : SkinData{
-        $skinId = $packet->getString();
-        $skinPlayFabId = $packet->getString();
-        $skinResourcePatch = $packet->getString();
-        $skinData = self::getSkinImage($packet);
-        $animationCount = $packet->getLInt();
+		$out = new BinaryStream();
+        $skinId = $out->getString();
+        $skinPlayFabId = $out->getString();
+        $skinResourcePatch = $out->getString();
+        $skinData = self::getSkinImage($out);
+        $animationCount = $out->getLInt();
         $animations = [];
         for($i = 0; $i < $animationCount; ++$i){
-            $skinImage = self::getSkinImage($packet);
-            $animationType = $packet->getLInt();
-            $animationFrames = $packet->getLFloat();
-            $expressionType = $packet->getLInt();
+            $skinImage = self::getSkinImage($out);
+            $animationType = $out->getLInt();
+            $animationFrames = $out->getLFloat();
+            $expressionType = $out->getLInt();
             $animations[] = new SkinAnimation($skinImage, $animationType, $animationFrames, $expressionType);
         }
-        $capeData = self::getSkinImage($packet);
-        $geometryData = $packet->getString();
+        $capeData = self::getSkinImage($out);
+        $geometryData = $out->getString();
         if($protocol >= ProtocolConstants::BEDROCK_1_17_30){
-            $geometryDataVersion = $packet->getString();
+            $geometryDataVersion = $out->getString();
         }
-        $animationData = $packet->getString();
+        $animationData = $out->getString();
         if($protocol < ProtocolConstants::BEDROCK_1_17_30) {
-            $premium = $packet->getBool();
-            $persona = $packet->getBool();
-            $capeOnClassic = $packet->getBool();
+            $premium = $out->getBool();
+            $persona = $out->getBool();
+            $capeOnClassic = $out->getBool();
         }
-        $capeId = $packet->getString();
-        $fullSkinId = $packet->getString();
-        $armSize = $packet->getString();
-        $skinColor = $packet->getString();
-        $personaPieceCount = $packet->getLInt();
+        $capeId = $out->getString();
+        $fullSkinId = $out->getString();
+        $armSize = $out->getString();
+        $skinColor = $out->getString();
+        $personaPieceCount = $out->getLInt();
         $personaPieces = [];
         for($i = 0; $i < $personaPieceCount; ++$i){
-            $pieceId = $packet->getString();
-            $pieceType = $packet->getString();
-            $packId = $packet->getString();
-            $isDefaultPiece = $packet->getBool();
-            $productId = $packet->getString();
+            $pieceId = $out->getString();
+            $pieceType = $out->getString();
+            $packId = $out->getString();
+            $isDefaultPiece = $out->getBool();
+            $productId = $out->getString();
             $personaPieces[] = new PersonaSkinPiece($pieceId, $pieceType, $packId, $isDefaultPiece, $productId);
         }
-        $pieceTintColorCount = $packet->getLInt();
+        $pieceTintColorCount = $out->getLInt();
         $pieceTintColors = [];
         for($i = 0; $i < $pieceTintColorCount; ++$i){
-            $pieceType = $packet->getString();
-            $colorCount = $packet->getLInt();
+            $pieceType = $out->getString();
+            $colorCount = $out->getLInt();
             $colors = [];
             for($j = 0; $j < $colorCount; ++$j){
-                $colors[] = $packet->getString();
+                $colors[] = $out->getString();
             }
             $pieceTintColors[] = new PersonaPieceTintColor(
                 $pieceType,
@@ -133,41 +141,46 @@ class Serializer{
             );
         }
         if($protocol >= ProtocolConstants::BEDROCK_1_17_30){
-            $premium = $packet->getBool();
-            $persona = $packet->getBool();
-            $capeOnClassic = $packet->getBool();
-            $isPrimaryUser = $packet->getBool();
+            $premium = $out->getBool();
+            $persona = $out->getBool();
+            $capeOnClassic = $out->getBool();
+            $isPrimaryUser = $out->getBool();
         }
 
         return new SkinData($skinId, $skinPlayFabId, $skinResourcePatch, $skinData, $animations, $capeData, $geometryData, $geometryDataVersion ?? "1.17.30", $animationData, $capeId, $fullSkinId, $armSize, $skinColor, $personaPieces, $pieceTintColors, true, $premium ?? false, $persona ?? false, $capeOnClassic ?? false, $isPrimaryUser ?? true);
     }
 
     public static function putSkinImage(SkinImage $image, DataPacket $packet) : void{
-        ($packet->buffer .= (\pack("V", $image->getWidth())));
-        ($packet->buffer .= (\pack("V", $image->getHeight())));
-        $packet->putString($image->getData());
+		$in = new BinaryStream();
+		$in->putLInt($image->getWidth());
+		$in->putLInt($image->getHeight());
+		$in->putString($image->getData());
     }
 
     public static function getSkinImage(DataPacket $packet) : SkinImage{
-        $width = ((\unpack("V", $packet->get(4))[1] << 32 >> 32));
-        $height = ((\unpack("V", $packet->get(4))[1] << 32 >> 32));
-        $data = $packet->getString();
-        return new SkinImage($height, $width, $data);
+		$out = new BinaryStream();
+		$width = $out->getLInt();
+		$height = $out->getLInt();
+		$data = $out->getString();
+		try{
+			return new SkinImage($height, $width, $data);
+		}catch(\InvalidArgumentException $e){
+			throw new PacketDecodeException($e->getMessage(), 0, $e);
+		}
     }
 
-    public static function putItemStack(NetworkBinaryStream $packet, int $protocol, Item $item, callable $writeExtraCrapInTheMiddle) {
+    public static function putItemStack(PacketSerializer $packet, int $protocol, Item $item, callable $writeExtraCrapInTheMiddle) {
         if($item->getId() === 0){
             $packet->putVarInt(0);
-
             return;
         }
 
-        $coreData = $item->getDamage();
+        $coreData = $item->getMeta();
         [$netId, $netData] = MultiVersionItemTranslator::getInstance()->toNetworkId($item->getId(), $coreData, $protocol);
 
-        $packet->putVarInt($netId);
-        ($packet->buffer .= (\pack("v", $item->getCount())));
-        $packet->putUnsignedVarInt($netData);
+		$packet->putVarInt($netId);
+		$packet->putLShort($item->getCount());
+		$packet->putUnsignedVarInt($netData);
 
         $writeExtraCrapInTheMiddle($packet);
 
@@ -175,27 +188,26 @@ class Serializer{
         $isBlockItem = $item->getId() < 256;
         if($isBlockItem){
             $block = $item->getBlock();
-            if($block->getId() !== BlockIds::AIR){
-                $blockRuntimeId = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block->getId(), $block->getDamage(), $protocol);
+            if($block->getId() !== BlockLegacyIds::AIR){
+                $blockRuntimeId = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block->getId(), $block->getMeta(), $protocol);
             }
         }
         $packet->putVarInt($blockRuntimeId);
 
         $nbt = null;
-        if($item->hasCompoundTag()){
+        if($item->hasNamedTag()){
             $nbt = clone $item->getNamedTag();
         }
         if($item instanceof Durable and $coreData > 0){
             if($nbt !== null){
-                if(($existing = $nbt->getTag("Damage")) !== null){
-                    $nbt->removeTag("Damage");
-                    $existing->setName("___Damage_ProtocolCollisionResolution___");
-                    $nbt->setTag($existing);
+                if(($existing = $nbt->getTag("Meta")) !== null){
+                    $nbt->removeTag("Meta");
+                    $nbt->setTag("___Meta_ProtocolCollisionResolution___", $existing);
                 }
             }else{
                 $nbt = new CompoundTag();
             }
-            $nbt->setInt("Damage", $coreData);
+            $nbt->setInt("Meta", $coreData);
         }elseif($isBlockItem && $coreData !== 0){
             //TODO HACK: This foul-smelling code ensures that we can correctly deserialize an item when the
             //client sends it back to us, because as of 1.16.220, blockitems quietly discard their metadata
@@ -206,14 +218,15 @@ class Serializer{
             $nbt->setInt("___Meta___", $coreData);
         }
 
-        $packet->putString(
-            (static function() use ($protocol, $nbt, $netId) : string{
-                $extraData = new NetworkBinaryStream();
+		$context = new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary($protocol));
+		$packet->putString(
+            (static function() use ($protocol, $nbt, $netId, $context) : string{
+                $extraData = PacketSerializer::encoder($context);
 
                 if($nbt !== null){
                     $extraData->putLShort(0xffff);
                     $extraData->putByte(1); //TODO: NBT data version (?)
-                    $extraData->put((new LittleEndianNBTStream())->write($nbt));
+                    $extraData->put((new LittleEndianNbtSerializer())->write(new TreeRoot($nbt)));
                 }else{
                     $extraData->putLShort(0);
                 }
@@ -221,15 +234,15 @@ class Serializer{
                 $extraData->putLInt(0); //CanPlaceOn entry count (TODO)
                 $extraData->putLInt(0); //CanDestroy entry count (TODO)
 
-                if($netId === MultiVersionItemTypeDictionary::getInstance()->fromStringId("minecraft:shield", $protocol)){
+                if($netId === MultiVersionGlobalItemTypeDictionary::getInstance()->getDictionary($protocol)->fromStringId("minecraft:shield", $protocol)){
                     $extraData->putLLong(0); //"blocking tick" (ffs mojang)
                 }
                 return $extraData->getBuffer();
             })());
     }
 
-    public static function putItem(NetworkBinaryStream $packet, int $protocol, Item $item, int $stackId) {
-        self::putItemStack($packet, $protocol, $item, function(NetworkBinaryStream $out) use ($stackId){
+    public static function putItem(PacketSerializer $packet, int $protocol, Item $item, int $stackId) {
+        self::putItemStack($packet, $protocol, $item, function(BinaryStream $out) use ($stackId){
             $out->putBool($stackId !== 0);
             if($stackId !== 0) {
                 $out->putVarInt($stackId);
@@ -237,7 +250,7 @@ class Serializer{
         });
     }
 
-    public static function putRecipeIngredient(NetworkBinaryStream $packet, Item $item, int $protocol) {
+    public static function putRecipeIngredient(PacketSerializer $packet, Item $item, int $protocol) {
         if($item->isNull()){
             $packet->putVarInt(0);
         }else{
@@ -245,7 +258,7 @@ class Serializer{
                 [$netId, ] = MultiVersionItemTranslator::getInstance()->toNetworkId($item->getId(), 0, $protocol);
                 $netData = 0x7fff;
             }else{
-                [$netId, $netData] = MultiVersionItemTranslator::getInstance()->toNetworkId($item->getId(), $item->getDamage(), $protocol);
+                [$netId, $netData] = MultiVersionItemTranslator::getInstance()->toNetworkId($item->getId(), $item->getMeta(), $protocol);
             }
             $packet->putVarInt($netId);
             $packet->putVarInt($netData);
@@ -253,27 +266,28 @@ class Serializer{
         }
     }
 
-    public static function putItemStackWithoutStackId(NetworkBinaryStream $packet, Item $item, int $protocol) : void{
+    public static function putItemStackWithoutStackId(PacketSerializer $packet, Item $item, int $protocol) : void{
         self::putItemStack($packet, $protocol, $item, function() : void{});
     }
 
     public static function getItemStack(DataPacket $packet, \Closure $readExtraCrapInTheMiddle, int $protocol) : Item{
-        $netId = $packet->getVarInt();
+		$out = new BinaryStream();
+        $netId = $out->getVarInt();
         if($netId === 0){
-            return ItemFactory::get(0, 0, 0);
+            return ItemFactory::getInstance()->get(0, 0, 0);
         }
 
-        $cnt = $packet->getLShort();
-        $netData = $packet->getUnsignedVarInt();
+        $cnt = $out->getLShort();
+        $netData = $out->getUnsignedVarInt();
 
         $null = null;
         [$id, $meta] = MultiVersionItemTranslator::getInstance()->fromNetworkId($netId, $netData, $null, $protocol);
 
         $readExtraCrapInTheMiddle($packet);
 
-        $packet->getVarInt();
+        $out->getVarInt();
 
-        $extraData = new NetworkBinaryStream($packet->getString());
+        $extraData = PacketSerializer::decoder($out->getString(), 0, new PacketSerializerContext(MultiVersionGlobalItemTypeDictionary::getInstance()->getDictionary($protocol)));
         return (static function() use ($protocol, $extraData, $netId, $id, $meta, $cnt) : Item{
             $nbtLen = $extraData->getLShort();
 
@@ -284,10 +298,8 @@ class Serializer{
                 if($nbtDataVersion !== 1){
                     throw new \UnexpectedValueException("Unexpected NBT data version $nbtDataVersion");
                 }
-                $decodedNBT = (new LittleEndianNBTStream())->read($extraData->buffer, false, $extraData->offset, 512);
-                if(!($decodedNBT instanceof CompoundTag)){
-                    throw new \UnexpectedValueException("Unexpected root tag type for itemstack");
-                }
+				$offset = $extraData->getOffset();
+				$decodedNBT = (new LittleEndianNbtSerializer())->read($extraData->getBuffer(), $offset, 512);
                 $nbt = $decodedNBT;
             }elseif($nbtLen !== 0){
                 throw new \UnexpectedValueException("Unexpected fake NBT length $nbtLen");
@@ -303,7 +315,7 @@ class Serializer{
                 $extraData->get($extraData->getLShort());
             }
 
-            if($netId === MultiVersionItemTypeDictionary::getInstance()->fromStringId("minecraft:shield", $protocol)){
+            if($netId === MultiVersionGlobalItemTypeDictionary::getInstance()->getDictionary($protocol)->fromStringId("minecraft:shield", $protocol)){
                 $extraData->getLLong(); //"blocking tick" (ffs mojang)
             }
 
@@ -312,13 +324,12 @@ class Serializer{
             }
 
             if($nbt !== null){
-                if($nbt->hasTag("Damage", IntTag::class)){
+                if($nbt->getTag("Meta") !== null){
                     $meta = $nbt->getInt("Damage");
                     $nbt->removeTag("Damage");
-                    if(($conflicted = $nbt->getTag("___Damage_ProtocolCollisionResolution___")) !== null){
-                        $nbt->removeTag("___Damage_ProtocolCollisionResolution___");
-                        $conflicted->setName("Damage");
-                        $nbt->setTag($conflicted);
+                    if(($conflicted = $nbt->getTag("___Meta_ProtocolCollisionResolution___")) !== null){
+                        $nbt->removeTag("___Meta_ProtocolCollisionResolution___");
+                        $nbt->setTag("Meta", $conflicted);
                     }elseif($nbt->count() === 0){
                         $nbt = null;
                     }
@@ -333,46 +344,48 @@ class Serializer{
                     }
                 }
             }
-            return ItemFactory::get($id, $meta, $cnt, $nbt);
+            return ItemFactory::getInstance()->get($id, $meta, $cnt, $nbt);
         })();
     }
 
     public static function getItemStackWrapper(DataPacket $packet, int $protocol): ItemStackWrapper{
         $stackId = 0;
-        $stack = self::getItemStack($packet, function(NetworkBinaryStream $in) use (&$stackId) : void{
+        $stack = self::getItemStack($packet, function(PacketSerializer $in) use (&$stackId) : void{
             $hasNetId = $in->getBool();
             if($hasNetId){
                 $stackId = $in->readGenericTypeNetworkId();
             }
         }, $protocol);
-        return new ItemStackWrapper($stackId, $stack);
+        return new ItemStackWrapper($stackId, new ItemStack($stack->getId(), $stack->getMeta(), $stack->getCount(), MultiVersionRuntimeBlockMapping::toStaticRuntimeId($stack->getId(), $stack->getMeta()), $stack->getNamedTag(), $stack->getCanPlaceOn(), $stack->getCanDestroy()));
     }
 
-    public static function putEntityLink(DataPacket $packet, EntityLink $link) {
-        $packet->putEntityUniqueId($link->fromEntityUniqueId);
-        $packet->putEntityUniqueId($link->toEntityUniqueId);
-        ($packet->buffer .= \chr($link->type));
-        ($packet->buffer .= ($link->immediate ? "\x01" : "\x00"));
-        ($packet->buffer .= ($link->causedByRider ? "\x01" : "\x00"));
+    public static function putEntityLink(EntityLink $link) {
+		$out = new BinaryStream();
+		$out->putActorUniqueId($link->fromActorUniqueId);
+		$out->putActorUniqueId($link->toActorUniqueId);
+		$out->putByte($link->type);
+		$out->putBool($link->immediate);
+		$out->putBool($link->causedByRider);
     }
 
-    public static function putGameRules(DataPacket $packet, array $rules, int $protocol){
-        $packet->putUnsignedVarInt(count($rules));
+    public static function putGameRules(array $rules, int $protocol){
+		$out = new BinaryStream();
+		$out->putUnsignedVarInt(count($rules));
         foreach($rules as $name => $rule){
-            $packet->putString($name);
+			$out->putString($name);
             if($protocol >= ProtocolConstants::BEDROCK_1_17_0){
-                $packet->putBool($rule[2]);
+				$out->putBool($rule[2]);
             }
-            $packet->putUnsignedVarInt($rule[0]);
+			$out->putUnsignedVarInt($rule[0]);
             switch($rule[0]){
                 case GameRuleType::BOOL:
-                    $packet->putBool($rule[1]);
+					$out->putBool($rule[1]);
                     break;
                 case GameRuleType::INT:
-                    $packet->putUnsignedVarInt($rule[1]);
+					$out->putUnsignedVarInt($rule[1]);
                     break;
                 case GameRuleType::FLOAT:
-                    $packet->putLFloat($rule[1]);
+					$out->putLFloat($rule[1]);
                     break;
             }
         }

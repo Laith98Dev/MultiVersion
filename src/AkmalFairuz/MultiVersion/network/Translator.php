@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AkmalFairuz\MultiVersion\network;
 
+use AkmalFairuz\MultiVersion\network\convert\MultiVersionGlobalItemTypeDictionary;
 use AkmalFairuz\MultiVersion\network\convert\MultiVersionItemTypeDictionary;
 use AkmalFairuz\MultiVersion\network\convert\MultiVersionRuntimeBlockMapping;
 use AkmalFairuz\MultiVersion\network\translator\AddItemActorPacketTranslator;
@@ -29,6 +30,7 @@ use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\convert\RuntimeBlockMapping;
 use pocketmine\network\mcpe\JwtException;
 use pocketmine\network\mcpe\JwtUtils;
+use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\AddActorPacket;
 use pocketmine\network\mcpe\protocol\AddItemActorPacket;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
@@ -49,6 +51,7 @@ use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\NpcRequestPacket;
+use pocketmine\network\mcpe\protocol\Packet;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
@@ -91,7 +94,7 @@ class Translator{
 		return $clientData;
 	}
 
-    public static function fromClient(DataPacket $packet, int $protocol, Player $player = null) : DataPacket{
+    public static function fromClient(DataPacket $packet, int $protocol, NetworkSession $session = null) : DataPacket{
         $pid = $packet::NETWORK_ID;
         switch($pid) {
             case LoginPacket::NETWORK_ID:
@@ -144,9 +147,8 @@ class Translator{
         return $packet;
     }
 
-    public static function fromServer(DataPacket $packet, int $protocol, Player $player = null, bool &$translated = true) : ?DataPacket {
-        $pid = $packet::NETWORK_ID;
-        switch($pid) {
+    public static function fromServer(Packet $packet, int $protocol, NetworkSession $session = null, bool &$translated = true) : ?DataPacket {
+        switch($packet->pid()) {
             case ResourcePackStackPacket::NETWORK_ID:
                 /** @var ResourcePackStackPacket $packet */
                 $packet->baseGameVersion = "1.16.220";
@@ -186,7 +188,7 @@ class Translator{
                         return $packet;
                     case LevelEvent::PARTICLE_PUNCH_BLOCK:
                         $position = $packet->position;
-                        $block = $player->getWorld()->getBlock($position);
+                        $block = $session->getPlayer()->getWorld()->getBlock($position);
                         if($block->getId() === 0) {
                             return null;
                         }
@@ -198,8 +200,8 @@ class Translator{
             case LevelChunkPacket::NETWORK_ID:
                 /** @var LevelChunkPacket $packet */
                 if($protocol <= ProtocolConstants::BEDROCK_1_17_40) {
-                    if($player->getWorld() !== null){
-                        return Chunk112::serialize($player->getWorld(), $packet);
+                    if($session->getPlayer()->getWorld() !== null){
+                        return Chunk112::serialize($session->getPlayer()->getWorld(), $packet);
                     }
                     return null;
                 }
@@ -221,7 +223,7 @@ class Translator{
                 return $packet;
             case StartGamePacket::NETWORK_ID:
                 /** @var StartGamePacket $packet */
-                $packet->itemTable = MultiVersionItemTypeDictionary::getInstance()->getEntries($protocol);
+                $packet->itemTable = MultiVersionGlobalItemTypeDictionary::getInstance()->getDictionary($protocol)->getEntries($protocol);
                 self::encodeHeader($packet);
                 StartGamePacketTranslator::serialize($packet, $protocol);
                 return $packet;

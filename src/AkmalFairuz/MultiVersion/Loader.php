@@ -6,6 +6,7 @@ namespace AkmalFairuz\MultiVersion;
 
 use AkmalFairuz\MultiVersion\command\MultiVersionCommand;
 use AkmalFairuz\MultiVersion\network\convert\MultiVersionCraftingManager;
+use AkmalFairuz\MultiVersion\network\convert\MultiVersionGlobalItemTypeDictionary;
 use AkmalFairuz\MultiVersion\network\convert\MultiVersionRuntimeBlockMapping;
 use AkmalFairuz\MultiVersion\task\CheckUpdateTask;
 use pocketmine\inventory\CraftingManager;

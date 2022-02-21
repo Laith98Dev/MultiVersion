@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AkmalFairuz\MultiVersion\network\convert;
 
 use AkmalFairuz\MultiVersion\Loader;
+use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
 use pocketmine\network\mcpe\convert\ItemTranslator;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\SingletonTrait;
@@ -86,7 +87,12 @@ class MultiVersionItemTranslator{
             }
         }
 
-        return new self(MultiVersionItemTypeDictionary::getInstance(), $simpleMappings, $complexMappings);
+		$p = null;
+		foreach (MultiVersionGlobalItemTypeDictionary::PROTOCOL as $protocol => $file){
+			$p = $protocol;
+		}
+
+        return new self(MultiVersionGlobalItemTypeDictionary::getInstance()->getDictionary($p), $simpleMappings, $complexMappings);
     }
 
     /**

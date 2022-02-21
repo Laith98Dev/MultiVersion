@@ -5,17 +5,12 @@ declare(strict_types=1);
 namespace AkmalFairuz\MultiVersion\task;
 
 use AkmalFairuz\MultiVersion\Loader;
-use pocketmine\network\mcpe\protocol\BatchPacket;
+use pocketmine\network\mcpe\compression\CompressBatchPromise;
 use pocketmine\scheduler\AsyncTask;
-use pocketmine\Server;
-use function chr;
+use pocketmine\utils\BinaryStream;
 use function zlib_encode;
-use const ZLIB_ENCODING_GZIP;
 
 class CompressTask extends AsyncTask{
-
-    /** @var string */
-    private $payload;
 
     /** @var bool */
     private $fail = false;
@@ -23,11 +18,17 @@ class CompressTask extends AsyncTask{
     /** @var int */
     private $level;
 
-    public function __construct(BatchPacket $packet, callable $callback) {
-        $packet->reset();
-        $this->payload = $packet->payload;
-        $this->storeLocal([$packet, $callback]);
-        // $this->level = Server::getInstance()->networkCompressionLevel;
+	private const TLS_KEY_PROMISE = "promise";
+	private const TLS_KEY_ERROR_HOOK = "errorHook";
+
+	/** @var string */
+	private $payload;
+
+	public function __construct(BinaryStream $stream, callable $callback) {
+		$stream->rewind();
+		$this->payload = $stream->getRemaining();
+        $this->storeLocal(self::TLS_KEY_PROMISE, new CompressBatchPromise());
+        $this->storeLocal(self::TLS_KEY_ERROR_HOOK, $callback);
         $this->level = 7;
     }
 
@@ -44,11 +45,9 @@ class CompressTask extends AsyncTask{
             Loader::getInstance()->getLogger()->error("Failed to compress batch packet");
             return;
         }
-        [$packet, $callback] = $this->fetchLocal();
-        /** @var BatchPacket $packet */
-        $packet->isEncoded = true;
-        $packet->buffer .= chr($packet->pid());
-        $packet->buffer .= $this->getResult();
+		/** @var CompressBatchPromise $promise */
+		[$packet, $callback] = $this->fetchLocal(self::TLS_KEY_PROMISE);
+		$promise->resolve($this->getResult());
         $callback($packet);
     }
 }

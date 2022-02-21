@@ -11,6 +11,6 @@ use pocketmine\player\Player;
 class MultiVersion{
 
     public static function getProtocol(Player $player): int{
-        return SessionManager::getProtocol($player) ?? ProtocolInfo::CURRENT_PROTOCOL;
+        return SessionManager::getProtocol($player->getNetworkSession()) ?? ProtocolInfo::CURRENT_PROTOCOL;
     }
 }

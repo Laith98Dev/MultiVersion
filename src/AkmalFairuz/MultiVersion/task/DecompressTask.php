@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace AkmalFairuz\MultiVersion\task;
 
 use AkmalFairuz\MultiVersion\Loader;
+use pocketmine\network\mcpe\compression\CompressBatchPromise;
 use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\scheduler\AsyncTask;
 use pocketmine\Server;
+use pocketmine\utils\BinaryStream;
 use function zlib_decode;
 
 class DecompressTask extends AsyncTask{
@@ -18,11 +20,15 @@ class DecompressTask extends AsyncTask{
     /** @var bool */
     private $fail = false;
 
-    public function __construct(BatchPacket $packet, callable $callback) {
-        $packet->offset = 0;
+	private const TLS_KEY_PROMISE = "promise";
+	private const TLS_KEY_ERROR_HOOK = "errorHook";
+
+    public function __construct(BinaryStream $packet, callable $callback) {
+        $packet->setOffset(0);
         $packet->getByte();
         $this->buffer = $packet->getRemaining();
-        $this->storeLocal([$packet, $callback]);
+        $this->storeLocal(self::TLS_KEY_PROMISE, $packet);
+        $this->storeLocal(self::TLS_KEY_ERROR_HOOK, $callback);
     }
 
     public function onRun(): void{
@@ -38,9 +44,9 @@ class DecompressTask extends AsyncTask{
             Loader::getInstance()->getLogger()->error("Failed to decompress batch packet");
             return;
         }
-        [$packet, $callback] = $this->fetchLocal();
-        /** @var BatchPacket $packet */
-        $packet->isEncoded = false;
+		/** @var CompressBatchPromise $promise */
+		[$packet, $callback] = $this->fetchLocal(self::TLS_KEY_PROMISE);
+		$promise->resolve($this->getResult());
         $packet->offset = 0;
         $packet->payload = $this->getResult();
         $callback($packet);
