@@ -144,20 +144,6 @@ class EventListener implements Listener
 					return;
 				}
 
-				/*$batch = new BatchPacket();
-				$batch->addPacket($newPacket);
-				$batch->setCompressionLevel(7);
-				$batch->encode();
-
-				$task = new CompressTask($newPacket, function (BatchPacket $packet) use ($player) {
-					$this->cancel_send = true;
-					$player->getNetworkSession()->sendDataPacket($packet);
-					$this->cancel_send = false;
-				});
-				Server::getInstance()->getAsyncPool()->submitTask($task);
-
-				$this->cancel_send = true;
-				$session->sendDataPacket($batch);*/
 				$decompress = new DecompressTask($packet, function () use ($session, $packet) {
 					$this->cancel_send = true;
 					$session->sendDataPacket($packet);
