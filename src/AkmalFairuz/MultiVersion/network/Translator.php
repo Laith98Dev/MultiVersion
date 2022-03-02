@@ -99,9 +99,10 @@ class Translator{
         switch($pid) {
             case LoginPacket::NETWORK_ID:
                 /** @var LoginPacket $packet */
-				$clientData = self::parseClientData($packet->clientDataJwt);
+		//todo use JwtUtils instead
+		$clientData = self::parseClientData($packet->clientDataJwt);
                 if($protocol < ProtocolConstants::BEDROCK_1_17_30) {
-					$clientData->SkinGeometryDataEngineVersion = "";
+			$clientData->SkinGeometryDataEngineVersion = "";
                 }
                 return $packet;
             case PlayerSkinPacket::NETWORK_ID:
@@ -118,8 +119,8 @@ class Translator{
                 return $packet;
             case LevelSoundEventPacket::NETWORK_ID:
                 /** @var LevelSoundEventPacket $packet */
-				$stream = PacketSerializer::decoder(file_get_contents(\pocketmine\BEDROCK_DATA_PATH . "level_sound_id_map.json"), 0, new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary()));
-				$packet->decode($stream);
+		$stream = PacketSerializer::decoder(file_get_contents(\pocketmine\BEDROCK_DATA_PATH . "level_sound_id_map.json"), 0, new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary()));
+		$packet->decode($stream);
                 switch($packet->sound) {
                     case LevelSoundEvent::PLACE:
                     case LevelSoundEvent::BREAK_BLOCK:
