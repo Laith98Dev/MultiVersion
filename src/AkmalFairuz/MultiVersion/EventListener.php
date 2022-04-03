@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AkmalFairuz\MultiVersion;
 
+use AkmalFairuz\MultiVersion\compressor\MultiVersionZlibCompressor;
 use AkmalFairuz\MultiVersion\network\MultiVersionSessionAdapter;
 use AkmalFairuz\MultiVersion\network\ProtocolConstants;
 use AkmalFairuz\MultiVersion\network\Translator;
@@ -13,15 +14,11 @@ use AkmalFairuz\MultiVersion\task\DecompressTask;
 use AkmalFairuz\MultiVersion\utils\Utils;
 use pocketmine\crafting\CraftingManager;
 use pocketmine\event\Listener;
-use pocketmine\event\player\PlayerJoinEvent;
-use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\convert\GlobalItemTypeDictionary;
-use pocketmine\network\mcpe\handler\LoginPacketHandler;
-use pocketmine\network\mcpe\protocol\BatchPacket;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
@@ -30,16 +27,11 @@ use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PacketViolationWarningPacket;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
-use pocketmine\network\mcpe\protocol\ServerboundPacket;
-use pocketmine\network\mcpe\StandardPacketBroadcaster;
 use pocketmine\network\NetworkSessionManager;
-use pocketmine\player\Player;
-use pocketmine\player\PlayerInfo;
 use pocketmine\Server;
-use pocketmine\utils\BinaryDataException;
-use pocketmine\utils\TextFormat;
 use function in_array;
 use function strlen;
 
@@ -144,18 +136,21 @@ class EventListener implements Listener
 					return;
 				}
 
-				$decompress = new DecompressTask($packet, function () use ($session, $packet) {
-					$this->cancel_send = true;
-					$session->sendDataPacket($packet);
-					$this->cancel_send = false;
-				});
-				Server::getInstance()->getAsyncPool()->submitTask($decompress);
-				$compress = new CompressTask($packet, function () use ($session, $packet) {
-					$this->cancel_send = true;
-					$session->sendDataPacket($packet);
-					$this->cancel_send = false;
-				});
-				Server::getInstance()->getAsyncPool()->submitTask($compress);
+				// $decompress = new DecompressTask($packet, function () use ($session, $packet) {
+				// 	$session->sendDataPacket($packet);
+				// });
+				// Server::getInstance()->getAsyncPool()->submitTask($decompress);
+				$this->cancel_send = true;
+				$compressor = MultiVersionZlibCompressor::new();
+				$context = new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary());
+				$compressor->compress(PacketBatch::fromPackets($context, $packet)->getBuffer());
+				$this->cancel_send = false;
+				// $compress = new CompressTask($packet, function () use ($session, $packet) {
+				// 	$this->cancel_send = true;
+				// 	$session->sendDataPacket($packet);
+				// 	$this->cancel_send = false;
+				// });
+				// Server::getInstance()->getAsyncPool()->submitTask($compress);
 				if($this->cancel_send === true){
 					$this->cancel_send = false;
 				}
