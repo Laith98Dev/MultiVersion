@@ -52,6 +52,7 @@ use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\NpcRequestPacket;
 use pocketmine\network\mcpe\protocol\Packet;
+use pocketmine\network\mcpe\protocol\PacketDecodeException;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\ResourcePacksInfoPacket;
@@ -71,6 +72,10 @@ use pocketmine\player\Player;
 use pocketmine\utils\BinaryStream;
 
 class Translator{
+
+    private const SUBCLIENT_ID_MASK = 0x03; //2 bits
+	private const SENDER_SUBCLIENT_ID_SHIFT = 10;
+	private const RECIPIENT_SUBCLIENT_ID_SHIFT = 12;
 
 	/**
 	 * @throws PacketHandlingException
@@ -149,17 +154,21 @@ class Translator{
     }
 
     public static function fromServer(Packet $packet, int $protocol, NetworkSession $session = null, bool &$translated = true) : ?DataPacket {
+        var_dump($packet->pid());
         switch($packet->pid()) {
             case ResourcePackStackPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now ResourcePackStackPacket" . "\n";
                 /** @var ResourcePackStackPacket $packet */
                 $packet->baseGameVersion = "1.16.220";
                 return $packet;
             case UpdateBlockPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now UpdateBlockPacket" . "\n";
                 /** @var UpdateBlockPacket $packet */
                 $block = RuntimeBlockMapping::getInstance()->fromNetworkId($packet->blockRuntimeId);
                 $packet->blockRuntimeId = MultiVersionRuntimeBlockMapping::toStaticRuntimeId($block[0], $block[1], $protocol);
                 return $packet;
             case LevelSoundEventPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now LevelSoundEventPacket" . "\n";
                 /** @var LevelSoundEventPacket $packet */
                 switch($packet->sound) {
                     case LevelSoundEvent::PLACE:
@@ -170,6 +179,7 @@ class Translator{
                 }
                 return $packet;
             case AddActorPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now AddActorPacket" . "\n";
                 /** @var AddActorPacket $packet */
                 switch($packet->type) {
                     case "minecraft:falling_block":
@@ -181,6 +191,7 @@ class Translator{
                 }
                 return $packet;
             case LevelEventPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now LevelEventPacket" . "\n";
                 /** @var LevelEventPacket $packet */
                 switch($packet->evid) {
                     case LevelEvent::PARTICLE_DESTROY:
@@ -199,6 +210,7 @@ class Translator{
                 }
                 return $packet;
             case LevelChunkPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now LevelChunkPacket" . "\n";
                 /** @var LevelChunkPacket $packet */
                 if($protocol <= ProtocolConstants::BEDROCK_1_17_40) {
                     if($session->getPlayer()->getWorld() !== null){
@@ -208,87 +220,104 @@ class Translator{
                 }
                 return $packet;
             case AnimateEntityPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now AnimateEntityPacket" . "\n";
                 /** @var AnimateEntityPacket $packet */
                 self::encodeHeader($packet);
                 AnimateEntityPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case CraftingDataPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now CraftingDataPacket" . "\n";
                 /** @var CraftingDataPacket $packet */
                 self::encodeHeader($packet);
                 CraftingDataPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case PlayerListPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now PlayerListPacket" . "\n";
                 /** @var PlayerListPacket $packet */
                 self::encodeHeader($packet);
                 PlayerListPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case StartGamePacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now StartGamePacket" . "\n";
                 /** @var StartGamePacket $packet */
                 $packet->itemTable = MultiVersionGlobalItemTypeDictionary::getInstance()->getDictionary($protocol)->getEntries($protocol);
                 self::encodeHeader($packet);
                 StartGamePacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case PlayerSkinPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now PlayerSkinPacket" . "\n";
                 /** @var PlayerSkinPacket $packet */
                 self::encodeHeader($packet);
                 PlayerSkinPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case AddItemActorPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now AddItemActorPacket" . "\n";
                 /** @var AddItemActorPacket $packet */
                 self::encodeHeader($packet);
                 AddItemActorPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case InventoryContentPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now InventoryContentPacket" . "\n";
                 /** @var InventoryContentPacket $packet */
                 self::encodeHeader($packet);
                 InventoryContentPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case MobEquipmentPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now MobEquipmentPacket" . "\n";
                 /** @var MobEquipmentPacket $packet */
                 self::encodeHeader($packet);
                 MobEquipmentPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case MobArmorEquipmentPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now MobArmorEquipmentPacket" . "\n";
                 /** @var MobArmorEquipmentPacket $packet */
                 self::encodeHeader($packet);
                 MobArmorEquipmentPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case AddPlayerPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now AddPlayerPacket" . "\n";
                 /** @var AddPlayerPacket $packet */
                 self::encodeHeader($packet);
                 AddPlayerPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case InventorySlotPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now InventorySlotPacket" . "\n";
                 /** @var InventorySlotPacket $packet */
                 self::encodeHeader($packet);
                 InventorySlotPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case InventoryTransactionPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now InventoryTransactionPacket" . "\n";
                 /** @var InventoryTransactionPacket $packet */
                 self::encodeHeader($packet);
                 InventoryTransactionPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case CreativeContentPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now CreativeContentPacket" . "\n";
                 /** @var CreativeContentPacket $packet */
                 self::encodeHeader($packet);
                 CreativeContentPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case AvailableCommandsPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now AvailableCommandsPacket" . "\n";
                 /** @var AvailableCommandsPacket $packet */
                 self::encodeHeader($packet);
                 AvailableCommandsPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case SetTitlePacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now SetTitlePacket" . "\n";
                 /** @var SetTitlePacket $packet */
                 self::encodeHeader($packet);
                 SetTitlePacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case ResourcePacksInfoPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now ResourcePacksInfoPacket" . "\n";
                 /** @var ResourcePacksInfoPacket $packet */
                 self::encodeHeader($packet);
-                ResourcePacksInfoPacketTranslator::serialize($packet, $protocol);
+                // ResourcePacksInfoPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case GameRulesChangedPacket::NETWORK_ID:
+                echo __METHOD__ . ", " . __LINE__ . ", now GameRulesChangedPacket" . "\n";
                 /** @var GameRulesChangedPacket $packet */
                 self::encodeHeader($packet);
                 GameRulesChangedPacketTranslator::serialize($packet, $protocol);
@@ -309,14 +338,16 @@ class Translator{
     }
 
     public static function decodeHeader(DataPacket $packet) {
-		$out = new BinaryStream();
-        $packet->offset = 0;
+        echo __METHOD__ . ", " . __LINE__ . ", called" . "\n";
+        $out = new PacketSerializer(new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary()));
         $header = $out->getUnsignedVarInt();
-        $pid = $header & $packet::PID_MASK;
-        if($pid !== $packet::NETWORK_ID){
-            throw new \UnexpectedValueException("Expected " . $packet::NETWORK_ID . " for packet ID, got $pid");
-        }
-        $packet->senderSubId = ($header >> 10) & 0x03;
-        $packet->recipientSubId = ($header >> 12) & 0x03;
+		$pid = $header & $packet::PID_MASK;
+		if($pid !== $packet::NETWORK_ID){
+			//TODO: this means a logical error in the code, but how to prevent it from happening?
+			throw new PacketDecodeException("Expected " . $packet::NETWORK_ID . " for packet ID, got $pid");
+		}
+		$packet->senderSubId = ($header >> self::SENDER_SUBCLIENT_ID_SHIFT) & self::SUBCLIENT_ID_MASK;
+		$packet->recipientSubId = ($header >> self::RECIPIENT_SUBCLIENT_ID_SHIFT) & self::SUBCLIENT_ID_MASK;
+
     }
 }

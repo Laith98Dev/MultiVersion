@@ -53,17 +53,20 @@ class EventListener implements Listener
 		}
 		if ($packet instanceof LoginPacket) {
 			if (!Loader::getInstance()->canJoin) {
+				echo __METHOD__ . ", " . __LINE__ . ", CraftingManager not registered" . "\n";
 				$origin->disconnect("Trying to join the server before CraftingManager registered", false);
 				$event->cancel();
 				return;
 			}
 			if (!in_array($packet->protocol, ProtocolConstants::SUPPORTED_PROTOCOLS, true) || Loader::getInstance()->isProtocolDisabled($packet->protocol)) {
+				echo __METHOD__ . ", " . __LINE__ . ", Disabled Protocol" . "\n";
 				$origin->sendDataPacket(PlayStatusPacket::create(PlayStatusPacket::LOGIN_FAILED_SERVER), true);
 				$origin->disconnect(Server::getInstance()->getLanguage()->translateString("pocketmine.disconnect.incompatibleProtocol", [$packet->protocol]), false);
 				$event->cancel();
 				return;
 			}
 			if ($packet->protocol === ProtocolInfo::CURRENT_PROTOCOL) {
+				echo __METHOD__ . ", " . __LINE__ . ", Currently Protocol" . "\n";
 				return;
 			}
 
@@ -105,6 +108,7 @@ class EventListener implements Listener
 				$protocol = SessionManager::getProtocol($session);
 				$in = PacketSerializer::decoder($packet->getName(), 0, new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary()));
 				if ($protocol === null) {
+					echo __METHOD__ . ", " . __LINE__ . ", null Protocol" . "\n";
 					return;
 				}
 
@@ -118,14 +122,14 @@ class EventListener implements Listener
 					$this->cancel_send = false;
 					continue;
 				}
-				$packet->decode($in);
+				// $packet->decode($in);
 				$translated = Translator::fromServer($packet, $protocol, $session);
 				if ($translated === null) {
 					continue;
 				}
 				PacketPool::getInstance()->registerPacket($translated);
 
-				$packet->decode($in);
+				// $packet->decode($in);
 				$translated = true;
 				$newPacket = Translator::fromServer($packet, $protocol, $session, $translated);
 				if(!$translated) {
