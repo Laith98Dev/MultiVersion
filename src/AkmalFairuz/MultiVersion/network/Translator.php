@@ -314,6 +314,7 @@ class Translator{
                 echo __METHOD__ . ", " . __LINE__ . ", now ResourcePacksInfoPacket" . "\n";
                 /** @var ResourcePacksInfoPacket $packet */
                 self::encodeHeader($packet);
+                // ResourcePacksInfoPacket::create($packet->resourcePackEntries, $packet->behaviorPackEntries, true, true, true);
                 // ResourcePacksInfoPacketTranslator::serialize($packet, $protocol);
                 return $packet;
             case GameRulesChangedPacket::NETWORK_ID:

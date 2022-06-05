@@ -125,6 +125,7 @@ class EventListener implements Listener
 				// $packet->decode($in);
 				$translated = Translator::fromServer($packet, $protocol, $session);
 				if ($translated === null) {
+					echo __METHOD__ . ", " . __LINE__ . ", translate faild 1" . "\n";
 					continue;
 				}
 				PacketPool::getInstance()->registerPacket($translated);
@@ -133,6 +134,7 @@ class EventListener implements Listener
 				$translated = true;
 				$newPacket = Translator::fromServer($packet, $protocol, $session, $translated);
 				if(!$translated) {
+					echo __METHOD__ . ", " . __LINE__ . ", translate faild 2" . "\n";
 					return;
 				}
 				if($newPacket === null) {

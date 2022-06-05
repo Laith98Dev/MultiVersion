@@ -19,7 +19,7 @@ class SessionManager{
     }
 
     public static function remove(NetworkSession $session) {
-        unset(self::$sessions[$session->getDisplayName()]);
+        unset(self::$sessions[$session->getIp() . ":" . $session->getPort()]);
     }
 
     public static function create(NetworkSession $session, int $protocol) {
