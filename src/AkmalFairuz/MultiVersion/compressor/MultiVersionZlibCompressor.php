@@ -20,7 +20,7 @@ class MultiVersionZlibCompressor {
 	/**
 	 * @see SingletonTrait::make()
 	 */
-	private static function make() : self{
+	public static function make() : self{
 		return new self(self::DEFAULT_LEVEL, self::DEFAULT_THRESHOLD, self::DEFAULT_MAX_DECOMPRESSION_SIZE);
 	}
 
@@ -64,11 +64,4 @@ class MultiVersionZlibCompressor {
 		}
 		return self::zlib_encode($payload, $this->willCompress($payload) ? $this->level : 0);
 	}
-
-    public static function new() : self{
-        $ref = new \ReflectionClass(self::getInstance());
-        $method = $ref->getMethod("make");
-        $method->setAccessible(true);
-        return $method->invoke(self::getInstance(), "");
-    }
 }
