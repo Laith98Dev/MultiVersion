@@ -147,9 +147,10 @@ class EventListener implements Listener
 				// });
 				// Server::getInstance()->getAsyncPool()->submitTask($decompress);
 				$this->cancel_send = true;
-				$compressor = MultiVersionZlibCompressor::new();
+				//$compressor = MultiVersionZlibCompressor::make();
 				$context = new PacketSerializerContext(GlobalItemTypeDictionary::getInstance()->getDictionary());
-				$compressor->compress(PacketBatch::fromPackets($context, $packet)->getBuffer());
+				$batch = Server::getInstance()->prepareBatch(PacketBatch::fromPackets($context, [$packet]), MultiVersionZlibCompressor::getInstance());
+				$session->queueCompressed($batch);
 				$this->cancel_send = false;
 				// $compress = new CompressTask($packet, function () use ($session, $packet) {
 				// 	$this->cancel_send = true;
