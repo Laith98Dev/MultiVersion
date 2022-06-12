@@ -12,19 +12,19 @@ class SessionManager{
     private static $sessions = [];
 
     public static function get(NetworkSession $session) : ?Session{
-        var_dump($session->getIp() . ":" . $session->getPort());
+        var_dump(self::AddressToString($session));
         // var_dump($session->getDisplayName());
         var_dump(array_keys(self::$sessions)[0]);
-        return self::$sessions[$session->getIp() . ":" . $session->getPort()] ?? null;
+        return self::$sessions[self::AddressToString($session)] ?? null;
     }
 
     public static function remove(NetworkSession $session) {
-        unset(self::$sessions[$session->getIp() . ":" . $session->getPort()]);
+        unset(self::$sessions[self::AddressToString($session)]);
     }
 
     public static function create(NetworkSession $session, int $protocol) {
         echo __METHOD__ . ", " . __LINE__ . ", created new session" . "\n";
-        self::$sessions[$session->getIp() . ":" . $session->getPort()] = new Session($session, $protocol);
+        self::$sessions[self::AddressToString($session)] = new Session($session, $protocol);
         // self::$sessions[$session->getDisplayName()] = new Session($session, $protocol);
     }
 
@@ -33,5 +33,9 @@ class SessionManager{
             return $session->protocol;
         }
         return null;
+    }
+
+    private static function AddressToString(NetworkSession $session): string {
+        return $session->getIp() . ":" . $session->getPort();
     }
 }
